@@ -2,3 +2,5 @@
 tickets.db
 node_modules/
 api-notes.md
+.DS_Store
+*.log
