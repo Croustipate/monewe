@@ -13,6 +13,10 @@ function formatAmount(amount) {
   return (amount >= 0 ? '+' : '') + amount.toFixed(2) + ' €'
 }
 
+function esc(str) {
+  return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+}
+
 function setShortcut(shortcut) {
   const now = new Date()
   let from, to
@@ -61,8 +65,8 @@ function renderTickets(tickets) {
   }
   tbody.innerHTML = tickets.map(t => `
     <tr>
-      <td>${formatDate(t.date)}</td>
-      <td>${t.label || '—'}</td>
+      <td>${esc(formatDate(t.date))}</td>
+      <td>${esc(t.label) || '—'}</td>
       <td class="${t.amount < 0 ? 'amount-negative' : 'amount-positive'}">${formatAmount(t.amount)}</td>
       <td>${t.balance != null ? t.balance.toFixed(2) + ' €' : '—'}</td>
     </tr>
