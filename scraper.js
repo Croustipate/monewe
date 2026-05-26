@@ -1,21 +1,28 @@
-import { chromium } from 'playwright'
 import 'dotenv/config'
 import { insertTicket, logSync, pruneOldTickets } from './db.js'
 
+const HEADERS = {
+  'Content-Type': 'application/json',
+  'X-Requested-With': 'XMLHttpRequest'
+}
+
 export async function getAuthCookies() {
-  const browser = await chromium.launch({ headless: true })
-  const page = await browser.newPage()
+  const res = await fetch(`${process.env.MONEYWEB_URL}/clients/api/sign/in`, {
+    method: 'POST',
+    headers: HEADERS,
+    body: JSON.stringify({
+      ID: process.env.MONEYWEB_ID,
+      Password: process.env.MONEYWEB_PASSWORD,
+      RememberMe: true
+    })
+  })
 
-  await page.goto(`${process.env.MONEYWEB_URL}/clients#/login`, { waitUntil: 'networkidle' })
-  await page.fill('input[name="ID"]', process.env.MONEYWEB_ID)
-  await page.fill('input[name="Password"]', process.env.MONEYWEB_PASSWORD)
-  await page.click('button[type="submit"]')
-  await page.waitForTimeout(3000)
+  if (!res.ok) throw new Error(`Login échoué HTTP ${res.status}`)
 
-  const cookies = await browser.contexts()[0].cookies()
-  await browser.close()
+  // Extraire les cookies depuis les headers Set-Cookie
+  const setCookies = res.headers.getSetCookie?.() ?? []
+  const cookieStr = setCookies.map(c => c.split(';')[0]).join('; ')
 
-  const cookieStr = cookies.map(c => `${c.name}=${c.value}`).join('; ')
   if (!cookieStr.includes('__Auth')) {
     throw new Error('Auth échouée : cookie __Auth absent')
   }
@@ -25,11 +32,7 @@ export async function getAuthCookies() {
 export async function collectTickets(cookieStr, db) {
   const res = await fetch(`${process.env.MONEYWEB_URL}/clients/api/compte/dashboard`, {
     method: 'POST',
-    headers: {
-      'Cookie': cookieStr,
-      'Content-Type': 'application/json',
-      'X-Requested-With': 'XMLHttpRequest'
-    },
+    headers: { ...HEADERS, Cookie: cookieStr },
     body: '{}'
   })
 
