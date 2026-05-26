@@ -45,16 +45,26 @@ test('getTickets filtre par période et trie par date décroissante', () => {
 
 test('getSummary calcule les débits et crédits séparément', () => {
   const db = initDb(':memory:')
-  insertTicket(db, { id: 'T001', date: '2026-05-10T12:00:00', amount: -5.50, label: 'SELF', location: '', balance: 94.50, raw_json: '{}' })
-  insertTicket(db, { id: 'T002', date: '2026-05-20T12:00:00', amount: -6.00, label: 'SELF', location: '', balance: 88.50, raw_json: '{}' })
-  insertTicket(db, { id: 'T003', date: '2026-05-15T10:00:00', amount: 60.00, label: 'RECHARGEMENT', location: '', balance: 148.50, raw_json: '{}' })
+  // Ticket repas ordinaire
+  insertTicket(db, { id: 'T001', date: '2026-05-10T12:00:00', amount: -5.50, label: 'SELF', location: '', balance: 94.50,
+    raw_json: JSON.stringify({ TotalPlateau: 5.50, TotalFinancier: 0, AncienSolde: 100, NouveauSolde: 94.50 }) })
+  // Ticket repas ordinaire
+  insertTicket(db, { id: 'T002', date: '2026-05-20T12:00:00', amount: -6.00, label: 'SELF', location: '', balance: 88.50,
+    raw_json: JSON.stringify({ TotalPlateau: 6.00, TotalFinancier: 0, AncienSolde: 94.50, NouveauSolde: 88.50 }) })
+  // Rechargement pur
+  insertTicket(db, { id: 'T003', date: '2026-05-15T10:00:00', amount: 60.00, label: 'RECHARGEMENT', location: '', balance: 148.50,
+    raw_json: JSON.stringify({ TotalPlateau: 0, TotalFinancier: 60, AncienSolde: 88.50, NouveauSolde: 148.50 }) })
+  // Ticket combiné : rechargement 40€ + repas 4€ au même passage
+  insertTicket(db, { id: 'T004', date: '2026-05-25T12:00:00', amount: 36.00, label: 'SELF', location: '', balance: 184.50,
+    raw_json: JSON.stringify({ TotalPlateau: 4.00, TotalFinancier: 40, AncienSolde: 148.50, NouveauSolde: 184.50 }) })
+
   const summary = getSummary(db, { from: '2026-05-01', to: '2026-05-31' })
-  // count et totaux ne comptent que les débits (passages cantine)
-  assert.strictEqual(summary.count, 2)
-  assert.ok(Math.abs(summary.total - (-11.50)) < 0.001)
-  assert.ok(Math.abs(summary.average - (-5.75)) < 0.001)
-  // credited = somme des rechargements
-  assert.ok(Math.abs(summary.credited - 60.00) < 0.001)
+  // 3 passages cantine (T001, T002, T004)
+  assert.strictEqual(summary.count, 3)
+  // total repas = -(5.50 + 6.00 + 4.00) = -15.50
+  assert.ok(Math.abs(summary.total - (-15.50)) < 0.001)
+  // credited = 60 + 40 = 100
+  assert.ok(Math.abs(summary.credited - 100.00) < 0.001)
 })
 
 test('pruneOldTickets supprime les tickets trop anciens', () => {

@@ -48,30 +48,31 @@ export function getSummary(db, { from, to } = {}) {
   if (from) { conditions.push('date >= ?'); params.push(from) }
   if (to)   { conditions.push('date <= ?'); params.push(to + 'T23:59:59') }
 
-  const spendWhere = conditions.length
-    ? ' WHERE amount < 0 AND ' + conditions.join(' AND ')
-    : ' WHERE amount < 0'
-  const creditWhere = conditions.length
-    ? ' WHERE amount > 0 AND ' + conditions.join(' AND ')
-    : ' WHERE amount > 0'
+  const dateFilter = conditions.length ? ' AND ' + conditions.join(' AND ') : ''
 
-  // Passages (débits uniquement) — exclut les rechargements
+  // Passages cantine : tous tickets où TotalPlateau > 0 (inclut les tickets combinés)
   const spending = db.prepare(`
-    SELECT COUNT(*) as count, SUM(amount) as total, AVG(amount) as average
-    FROM tickets${spendWhere}
+    SELECT
+      COUNT(*) as count,
+      -SUM(json_extract(raw_json, '$.TotalPlateau')) as total,
+      -AVG(json_extract(raw_json, '$.TotalPlateau')) as average
+    FROM tickets
+    WHERE json_extract(raw_json, '$.TotalPlateau') > 0${dateFilter}
   `).get(...params)
 
-  // Total crédité (rechargements) sur la période
-  const { total: credited } = db.prepare(
-    `SELECT COALESCE(SUM(amount), 0) as total FROM tickets${creditWhere}`
-  ).get(...params)
+  // Rechargements : somme de TotalFinancier pour tous les tickets où TotalFinancier > 0
+  const { total: credited } = db.prepare(`
+    SELECT COALESCE(SUM(json_extract(raw_json, '$.TotalFinancier')), 0) as total
+    FROM tickets
+    WHERE json_extract(raw_json, '$.TotalFinancier') > 0${dateFilter}
+  `).get(...params)
 
   const lastRow = db.prepare('SELECT balance FROM tickets ORDER BY date DESC LIMIT 1').get()
 
   return {
     count:        spending.count,
-    total:        spending.total,
-    average:      spending.average,
+    total:        spending.total   != null ? -Math.abs(spending.total)   : null,
+    average:      spending.average != null ? -Math.abs(spending.average) : null,
     credited,
     last_balance: lastRow?.balance ?? null
   }

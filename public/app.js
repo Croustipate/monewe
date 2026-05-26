@@ -59,6 +59,19 @@ async function loadData() {
 
 let _tickets = []
 
+function expandTicket(t) {
+  const raw = t.raw_json ? JSON.parse(t.raw_json) : {}
+  if (raw.TotalFinancier > 0 && raw.TotalPlateau > 0) {
+    const balApres = raw.NouveauSolde
+    const balInter = Math.round((raw.AncienSolde + raw.TotalFinancier) * 100) / 100
+    return [
+      { _label: 'RECHARGEMENT', _amount: raw.TotalFinancier,  _balance: balInter, _raw: t },
+      { _label: t.label || 'SELF', _amount: -raw.TotalPlateau, _balance: balApres, _raw: t }
+    ]
+  }
+  return [{ _label: t.label, _amount: t.amount, _balance: t.balance, _raw: t }]
+}
+
 function renderTickets(tickets) {
   _tickets = tickets ?? []
   const tbody = document.getElementById('tickets-body')
@@ -66,17 +79,18 @@ function renderTickets(tickets) {
     tbody.innerHTML = '<tr><td colspan="5" class="empty">Aucun ticket sur cette période</td></tr>'
     return
   }
-  tbody.innerHTML = _tickets.map((t, i) => `
+  const rows = _tickets.flatMap((t, i) => expandTicket(t).map(r => ({ ...r, _idx: i })))
+  tbody.innerHTML = rows.map((r, ri) => `
     <tr>
-      <td>${esc(formatDate(t.date))}</td>
-      <td>${esc(t.label) || '—'}</td>
-      <td class="${t.amount < 0 ? 'amount-negative' : 'amount-positive'}">${formatAmount(t.amount)}</td>
-      <td>${t.balance != null ? t.balance.toFixed(2) + ' €' : '—'}</td>
-      <td><button class="btn-ticket" data-idx="${i}">Voir</button></td>
+      <td>${esc(formatDate(r._raw.date))}</td>
+      <td>${esc(r._label) || '—'}</td>
+      <td class="${r._amount < 0 ? 'amount-negative' : 'amount-positive'}">${formatAmount(r._amount)}</td>
+      <td>${r._balance != null ? r._balance.toFixed(2) + ' €' : '—'}</td>
+      <td><button class="btn-ticket" data-ri="${ri}">Voir</button></td>
     </tr>
   `).join('')
   tbody.querySelectorAll('.btn-ticket').forEach(btn =>
-    btn.addEventListener('click', () => openTicketModal(_tickets[+btn.dataset.idx]))
+    btn.addEventListener('click', () => openTicketModal(_tickets[rows[+btn.dataset.ri]._idx]))
   )
 }
 
