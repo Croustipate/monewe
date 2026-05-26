@@ -217,38 +217,54 @@ document.getElementById('btn-pdf-year').addEventListener('click', async () => {
     }
     await Promise.all([worker(), worker(), worker(), worker(), worker()])
 
+    // Calculer le total dépensé pour la page de couverture
+    const totalDepense = tickets
+      .filter(t => { const r = t.raw_json ? JSON.parse(t.raw_json) : {}; return r.TotalPlateau > 0 })
+      .reduce((s, t) => { const r = JSON.parse(t.raw_json); return s + r.TotalPlateau }, 0)
+
     // Générer la page d'impression
     const win = window.open('', '_blank')
     win.document.write(`<!DOCTYPE html><html lang="fr"><head>
       <meta charset="UTF-8"><title>Tickets cantine ${year}</title>
       <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Courier New', monospace; font-size: 11px; background: #fff; }
-        .cover { text-align: center; padding: 4cm 2cm; page-break-after: always; }
-        .cover h1 { font-size: 2em; margin-bottom: 0.5em; }
-        .cover p { font-size: 1.1em; color: #555; }
-        .ticket-page { padding: 1.5cm; page-break-after: always; }
-        .ticket-page:last-child { page-break-after: avoid; }
-        pre { white-space: pre-wrap; line-height: 1.45; }
+        body { font-family: 'Courier New', Courier, monospace; font-size: 8.5px; background: #e0e0e0; padding: 8mm; }
+        .cover { background: white; text-align: center; padding: 3cm 2cm; page-break-after: always; border-radius: 6px; }
+        .cover h1 { font-size: 2.2em; font-family: system-ui, sans-serif; margin-bottom: 0.4em; }
+        .cover .sub { font-family: system-ui, sans-serif; font-size: 1.1em; color: #555; line-height: 1.8; }
+        .cover .montant { font-size: 1.6em; font-weight: bold; color: #dc2626; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; }
+        .ticket-wrap { background: white; border-radius: 3px; overflow: hidden; break-inside: avoid; box-shadow: 0 2px 6px rgba(0,0,0,.18); }
+        .ticket-accent { height: 4px; background: #1d4ed8; }
+        .ticket-body { padding: 4mm 3.5mm; line-height: 1.5; }
+        .ticket-body pre { white-space: pre-wrap; }
+        .ticket-fallback { padding: 4mm 3.5mm; color: #666; font-style: italic; }
         @media print {
-          .cover, .ticket-page { padding: 1cm; }
+          body { background: white; padding: 4mm; }
+          .grid { gap: 4mm; }
+          .ticket-wrap { box-shadow: none; border: 1px solid #bbb; break-inside: avoid; }
+          .ticket-accent { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         }
       </style>
     </head><body>
       <div class="cover">
-        <h1>Tickets cantine</h1>
-        <p>Année ${year} &mdash; ${tickets.length} tickets</p>
+        <h1>Tickets cantine — ${year}</h1>
+        <div class="sub">
+          ${tickets.length} passages<br>
+          Total dépensé : <span class="montant">${totalDepense.toFixed(2)} €</span>
+        </div>
       </div>
-      ${htmls.map((html, i) => {
-        if (html) return `<div class="ticket-page">${html}</div>`
-        // Fallback texte si l'API n'a pas répondu
-        const t = tickets[i]
-        const raw = t.raw_json ? JSON.parse(t.raw_json) : {}
-        return `<div class="ticket-page"><pre>${new Date(t.date).toLocaleString('fr-FR')}
-${t.label || '—'}
-${t.amount >= 0 ? '+' : ''}${t.amount.toFixed(2)} €   Solde : ${t.balance?.toFixed(2) ?? '—'} €
-Ticket n° ${raw.IdTicket ?? t.id}</pre></div>`
-      }).join('')}
+      <div class="grid">
+        ${htmls.map((html, i) => {
+          if (html) return `<div class="ticket-wrap"><div class="ticket-accent"></div><div class="ticket-body">${html}</div></div>`
+          const t = tickets[i]
+          const raw = t.raw_json ? JSON.parse(t.raw_json) : {}
+          return `<div class="ticket-wrap"><div class="ticket-accent"></div><div class="ticket-fallback">
+            ${new Date(t.date).toLocaleString('fr-FR')}<br>
+            ${t.label || '—'} &mdash; ${t.amount >= 0 ? '+' : ''}${t.amount.toFixed(2)} €
+          </div></div>`
+        }).join('')}
+      </div>
     </body></html>`)
     win.document.close()
     win.print()
