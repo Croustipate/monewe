@@ -36,7 +36,7 @@ PORT=3000
 **Prérequis :** Node.js ≥ 18
 
 ```bash
-git clone https://github.com/<votre-compte>/monewe.git
+git clone https://github.com/Croustipate/monewe.git
 cd monewe
 npm install
 cp .env.example .env
@@ -104,7 +104,7 @@ bash build.sh arm64   # produit un binaire x64 natif
 - Build Tools C++ : `npm install -g node-gyp` puis [Visual Studio Build Tools](https://visualstudio.microsoft.com/fr/visual-cpp-build-tools/)
 
 ```bat
-git clone https://github.com/<votre-compte>/monewe.git
+git clone https://github.com/Croustipate/monewe.git
 cd monewe
 npm install
 build.bat
