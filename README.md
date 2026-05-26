@@ -12,51 +12,10 @@ L'application officielle MONEWEB limite l'affichage à une trentaine de tickets.
 - Navigation par année (flèches ‹ / ›)
 - Résumé : nombre de passages, total dépensé, moyenne par repas, rechargements, solde actuel
 - Détail de chaque ticket avec impression / export PDF
-- Export PDF de tous les tickets d'une année calendaire
+- Export PDF de tous les tickets d'une année calendaire (mise en page 2 colonnes)
 - Export CSV filtré
+- Cache local des tickets pour le PDF hors-ligne
 - Conservation des données sur 4 ans + l'année en cours
-
-## Prérequis
-
-- Node.js ≥ 18 (mode développement)
-- Compte MONEWEB actif
-
-## Installation (avec Node.js)
-
-```bash
-git clone https://github.com/<votre-compte>/monewe.git
-cd monewe
-npm install
-cp .env.example .env
-# Éditez .env avec vos identifiants
-```
-
-## Mode standalone (sans Node.js requis)
-
-Un binaire autonome intégrant le runtime Node.js peut être construit pour distribuer l'application sans installation préalable.
-
-### Construire le binaire Mac ARM64 (Apple Silicon)
-
-```bash
-npm run build
-# Crée dist/monewe-mac-arm64.zip
-```
-
-### Utiliser le binaire
-
-1. Décompresser `monewe-mac-arm64.zip`
-2. Copier `.env.example` → `.env` et y renseigner les identifiants
-3. Double-cliquer sur `start.command` (ou `bash start.command`)
-4. Ouvrir [http://localhost:3000](http://localhost:3000)
-
-### Autres plateformes
-
-| Plateforme | Construction |
-|---|---|
-| Mac x64 (Intel) | `X64_NODE=/path/node-x64 X64_SQLITE=/path/better_sqlite3-x64.node npm run build x64` |
-| Windows x64 | Compiler sur Windows : `npm install && npm run build` |
-
-> **Note** : le fichier `better_sqlite3.node` est lié à l'architecture et à la version de Node.js. Il doit être compilé sur la plateforme cible avec la même version ABI.
 
 ## Configuration
 
@@ -70,15 +29,98 @@ SYNC_HOUR=2
 PORT=3000
 ```
 
-## Utilisation
+---
+
+## Option A — Mode développement (avec Node.js)
+
+**Prérequis :** Node.js ≥ 18
 
 ```bash
+git clone https://github.com/<votre-compte>/monewe.git
+cd monewe
+npm install
+cp .env.example .env
+# Éditez .env avec vos identifiants
 npm start
 ```
 
 Accédez à l'interface sur [http://localhost:3000](http://localhost:3000).
 
-> **Premier lancement** : cliquez sur « Synchroniser » pour récupérer vos tickets immédiatement.
+---
+
+## Option B — Distribution autonome (sans installation requise)
+
+Un binaire autonome intègre le runtime Node.js. L'utilisateur final décompresse une archive et double-clique sur le lanceur.
+
+### Mac ARM64 (Apple Silicon M1/M2/M3/M4)
+
+**Sur la machine de build (Mac Apple Silicon) :**
+
+```bash
+npm install
+bash build.sh arm64
+# Crée dist/monewe-mac-arm64.zip
+```
+
+**Déploiement :**
+
+1. Décompresser `monewe-mac-arm64.zip`
+2. Copier `.env.example` → `.env` et renseigner les identifiants
+3. Double-cliquer sur `start.command` (ou `bash start.command`)
+4. Ouvrir [http://localhost:3000](http://localhost:3000)
+
+> macOS peut bloquer l'exécution au premier lancement. Aller dans **Réglages système → Confidentialité et sécurité** et autoriser l'application.
+
+---
+
+### Mac x64 (Intel)
+
+**Sur la machine de build (Mac Apple Silicon avec Rosetta 2 installé) :**
+
+```bash
+npm install
+bash build.sh x64
+# Recompile better-sqlite3 pour x86_64 via Rosetta, puis crée dist/monewe-mac-x64.zip
+```
+
+Si la recompilation Rosetta échoue, compiler directement sur un Mac Intel :
+
+```bash
+# Sur Mac Intel :
+npm install
+bash build.sh arm64   # produit un binaire x64 natif
+```
+
+**Déploiement :** identique à ARM64, utiliser `start.command`.
+
+---
+
+### Windows x64
+
+**Prérequis sur la machine Windows :**
+
+- [Node.js LTS](https://nodejs.org/) (inclut npm)
+- [Python 3](https://www.python.org/) (requis par node-gyp pour compiler better-sqlite3)
+- Build Tools C++ : `npm install -g node-gyp` puis [Visual Studio Build Tools](https://visualstudio.microsoft.com/fr/visual-cpp-build-tools/)
+
+```bat
+git clone https://github.com/<votre-compte>/monewe.git
+cd monewe
+npm install
+build.bat
+:: Crée dist\monewe-windows-x64.zip
+```
+
+**Déploiement :**
+
+1. Décompresser `monewe-windows-x64.zip`
+2. Copier `.env.example` → `.env` et renseigner les identifiants
+3. Double-cliquer sur `start.bat`
+4. Ouvrir [http://localhost:3000](http://localhost:3000)
+
+> **Note :** le fichier `better_sqlite3.node` est lié à la plateforme et à la version Node.js. La compilation doit se faire sur la même plateforme que la cible.
+
+---
 
 ## Tests
 
@@ -96,6 +138,8 @@ npm test
 | `scheduler.js` | Cron quotidien et mutex de synchro |
 | `public/` | Interface web (HTML + CSS + JS vanilla) |
 | `test/` | Tests unitaires (Node.js test runner natif) |
+| `build.sh` | Script de build Mac (arm64 / x64) |
+| `build.bat` | Script de build Windows x64 |
 
 ## Variables d'environnement
 
