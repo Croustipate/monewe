@@ -94,27 +94,34 @@ function renderTickets(tickets) {
   )
 }
 
-function openTicketModal(t) {
+async function openTicketModal(t) {
   const raw = t.raw_json ? JSON.parse(t.raw_json) : {}
-  const activite = esc(t.label || raw.Activite || '—')
-  const ancien = raw.AncienSolde != null ? raw.AncienSolde.toFixed(2) + ' €' : '—'
-  const nouveau = raw.NouveauSolde != null ? raw.NouveauSolde.toFixed(2) + ' €' : '—'
-  const plateau = raw.TotalPlateau != null && raw.TotalPlateau !== 0 ? raw.TotalPlateau.toFixed(2) + ' €' : null
-  const financier = raw.TotalFinancier != null && raw.TotalFinancier !== 0 ? raw.TotalFinancier.toFixed(2) + ' €' : null
-  const ttc = raw.TotalTTC != null && raw.TotalTTC !== 0 ? raw.TotalTTC.toFixed(2) + ' €' : null
-
-  document.getElementById('ticket-receipt-content').innerHTML = `
-    <h3>TICKET CANTINE</h3>
-    <div class="ticket-row"><span>Date</span><span>${esc(formatDate(t.date))}</span></div>
-    <div class="ticket-row"><span>Activité</span><span>${activite}</span></div>
-    <div class="ticket-row"><span>Ticket n°</span><span>${esc(String(raw.IdTicket ?? t.id ?? '—'))}</span></div>
-    ${plateau  ? `<div class="ticket-row"><span>Plateau</span><span>${plateau}</span></div>` : ''}
-    ${financier ? `<div class="ticket-row"><span>Financier</span><span>${financier}</span></div>` : ''}
-    ${ttc      ? `<div class="ticket-row"><span>TTC</span><span>${ttc}</span></div>` : ''}
-    <div class="ticket-row total"><span>Solde avant</span><span>${ancien}</span></div>
-    <div class="ticket-row total"><span>Solde après</span><span>${nouveau}</span></div>
-  `
+  const ticketId = raw.IdTicket ?? t.id
+  const content = document.getElementById('ticket-receipt-content')
+  content.innerHTML = '<p class="ticket-loading">Chargement du ticket…</p>'
   document.getElementById('ticket-dialog').showModal()
+
+  try {
+    const { html, error } = await fetch(`/api/ticket/${ticketId}/display`).then(r => r.json())
+    if (error) throw new Error(error)
+    content.innerHTML = `<div class="ticket-real">${html}</div>`
+  } catch {
+    // Fallback sur les données locales si l'API n'est pas disponible
+    const ancien  = raw.AncienSolde  != null ? raw.AncienSolde.toFixed(2)  + ' €' : '—'
+    const nouveau = raw.NouveauSolde != null ? raw.NouveauSolde.toFixed(2) + ' €' : '—'
+    const plateau   = raw.TotalPlateau   > 0 ? raw.TotalPlateau.toFixed(2)   + ' €' : null
+    const financier = raw.TotalFinancier > 0 ? raw.TotalFinancier.toFixed(2) + ' €' : null
+    content.innerHTML = `
+      <h3>TICKET CANTINE</h3>
+      <div class="ticket-row"><span>Date</span><span>${esc(formatDate(t.date))}</span></div>
+      <div class="ticket-row"><span>Activité</span><span>${esc(t.label || raw.Activite || '—')}</span></div>
+      <div class="ticket-row"><span>Ticket n°</span><span>${esc(String(ticketId ?? '—'))}</span></div>
+      ${plateau   ? `<div class="ticket-row"><span>Plateau</span><span>${plateau}</span></div>`   : ''}
+      ${financier ? `<div class="ticket-row"><span>Financier</span><span>${financier}</span></div>` : ''}
+      <div class="ticket-row total"><span>Solde avant</span><span>${ancien}</span></div>
+      <div class="ticket-row total"><span>Solde après</span><span>${nouveau}</span></div>
+    `
+  }
 }
 
 document.getElementById('dialog-close').addEventListener('click', () =>

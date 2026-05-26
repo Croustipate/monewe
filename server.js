@@ -3,12 +3,40 @@ import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 import 'dotenv/config'
 import { initDb, getTickets, getSummary, getLastSync } from './db.js'
-import { runSync } from './scraper.js'
+import { runSync, getAuthCookies } from './scraper.js'
 import { startScheduler, triggerSync, isSyncInProgress } from './scheduler.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const app = express()
 const db = initDb()
+
+// Cache des cookies de session MONEYWEB (valide 4h)
+let _cookieCache = { str: null, ts: 0 }
+const COOKIE_TTL = 4 * 60 * 60 * 1000
+
+async function getCachedCookies() {
+  if (_cookieCache.str && Date.now() - _cookieCache.ts < COOKIE_TTL) return _cookieCache.str
+  const str = await getAuthCookies()
+  _cookieCache = { str, ts: Date.now() }
+  return str
+}
+
+async function fetchTicketDisplay(id) {
+  const cookieStr = await getCachedCookies()
+  const r = await fetch(`${process.env.MONEYWEB_URL}/clients/api/ticket/display/${id}`, {
+    headers: { Cookie: cookieStr, 'X-Requested-With': 'XMLHttpRequest' }
+  })
+  if (r.status === 401 || r.status === 403) {
+    _cookieCache = { str: null, ts: 0 }
+    const freshCookies = await getCachedCookies()
+    const r2 = await fetch(`${process.env.MONEYWEB_URL}/clients/api/ticket/display/${id}`, {
+      headers: { Cookie: freshCookies, 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    return r2.json()
+  }
+  if (!r.ok) throw new Error(`HTTP ${r.status}`)
+  return r.json()
+}
 
 app.use(express.json())
 app.use(express.static(join(__dirname, 'public')))
@@ -33,6 +61,15 @@ app.post('/api/sync/trigger', async (req, res) => {
     res.json({ success: true, tickets_new: result.tickets_new })
   } catch (err) {
     res.status(409).json({ success: false, error: err.message })
+  }
+})
+
+app.get('/api/ticket/:id/display', async (req, res) => {
+  try {
+    const data = await fetchTicketDisplay(req.params.id)
+    res.json({ html: data.html ?? null })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
   }
 })
 
