@@ -7,12 +7,12 @@ const HEADERS = {
 }
 
 export async function getAuthCookies() {
-  const res = await fetch(`${process.env.MONEYWEB_URL}/clients/api/sign/in`, {
+  const res = await fetch(`${process.env.MONEWEB_URL}/clients/api/sign/in`, {
     method: 'POST',
     headers: HEADERS,
     body: JSON.stringify({
-      ID: process.env.MONEYWEB_ID,
-      Password: process.env.MONEYWEB_PASSWORD,
+      ID: process.env.MONEWEB_ID,
+      Password: process.env.MONEWEB_PASSWORD,
       RememberMe: true
     })
   })
@@ -30,7 +30,7 @@ export async function getAuthCookies() {
 }
 
 export async function collectTickets(cookieStr, db) {
-  const res = await fetch(`${process.env.MONEYWEB_URL}/clients/api/compte/dashboard`, {
+  const res = await fetch(`${process.env.MONEWEB_URL}/clients/api/compte/dashboard`, {
     method: 'POST',
     headers: { ...HEADERS, Cookie: cookieStr },
     body: '{}'

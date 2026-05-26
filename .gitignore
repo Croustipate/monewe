@@ -6,6 +6,8 @@ api-notes.md
 *.log
 discover-api.js
 docs/superpowers/
+dist/
+bun-sqlite-compat.js
 .browser-profile/
 agentdb.rvf
 agentdb.rvf.lock

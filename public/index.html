@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MONEYWEB — Tickets cantine</title>
+  <title>monewe — Tickets cantine</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -27,7 +27,11 @@
         <button data-shortcut="month">Ce mois-ci</button>
         <button data-shortcut="last-month">Mois précédent</button>
         <button data-shortcut="3months">3 derniers mois</button>
-        <button data-shortcut="year">Cette année</button>
+        <div class="year-nav">
+          <button id="btn-year-prev" title="Année précédente">‹</button>
+          <button id="btn-year-label" data-shortcut="year"></button>
+          <button id="btn-year-next" title="Année suivante">›</button>
+        </div>
       </div>
     </section>
 

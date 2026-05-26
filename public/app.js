@@ -1,4 +1,4 @@
-const state = { from: null, to: null }
+const state = { from: null, to: null, activeYear: new Date().getFullYear() }
 
 function toISO(date) { return date.toISOString().split('T')[0] }
 
@@ -15,6 +15,21 @@ function formatAmount(amount) {
 
 function esc(str) {
   return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+}
+
+function setYear(year) {
+  const maxYear = new Date().getFullYear()
+  state.activeYear = Math.max(2000, Math.min(year, maxYear))
+  const from = new Date(state.activeYear, 0, 1)
+  const to   = new Date(state.activeYear, 11, 31)
+  document.getElementById('date-from').value = toISO(from)
+  document.getElementById('date-to').value   = toISO(to)
+  state.from = toISO(from)
+  state.to   = toISO(to)
+  document.getElementById('btn-year-label').textContent = state.activeYear
+  document.getElementById('btn-year-prev').disabled = state.activeYear <= 2000
+  document.getElementById('btn-year-next').disabled = state.activeYear >= maxYear
+  loadData()
 }
 
 function setShortcut(shortcut) {
@@ -34,9 +49,8 @@ function setShortcut(shortcut) {
       to   = new Date(now.getFullYear(), now.getMonth() + 1, 0)
       break
     case 'year':
-      from = new Date(now.getFullYear(), 0, 1)
-      to   = new Date(now.getFullYear(), 11, 31)
-      break
+      setYear(state.activeYear)
+      return
   }
   document.getElementById('date-from').value = toISO(from)
   document.getElementById('date-to').value   = toISO(to)
@@ -200,6 +214,9 @@ document.querySelectorAll('[data-shortcut]').forEach(btn =>
   btn.addEventListener('click', () => setShortcut(btn.dataset.shortcut))
 )
 
+document.getElementById('btn-year-prev').addEventListener('click', () => setYear(state.activeYear - 1))
+document.getElementById('btn-year-next').addEventListener('click', () => setYear(state.activeYear + 1))
+
 document.getElementById('btn-sync').addEventListener('click', async () => {
   const btn = document.getElementById('btn-sync')
   btn.disabled = true
@@ -310,6 +327,10 @@ document.getElementById('btn-pdf-year').addEventListener('click', async () => {
     btn.textContent = `PDF année ${year}`
   }
 })
+
+// Initialiser l'étiquette de l'année avant tout raccourci
+document.getElementById('btn-year-label').textContent = state.activeYear
+document.getElementById('btn-year-next').disabled = true
 
 setShortcut('month')
 loadSyncStatus()

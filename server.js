@@ -10,7 +10,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const app = express()
 const db = initDb()
 
-// Cache des cookies de session MONEYWEB (valide 4h)
+// Cache des cookies de session MONEWEB (valide 4h)
 let _cookieCache = { str: null, ts: 0 }
 const COOKIE_TTL = 4 * 60 * 60 * 1000
 
@@ -23,13 +23,13 @@ async function getCachedCookies() {
 
 async function fetchTicketDisplay(id) {
   const cookieStr = await getCachedCookies()
-  const r = await fetch(`${process.env.MONEYWEB_URL}/clients/api/ticket/display/${id}`, {
+  const r = await fetch(`${process.env.MONEWEB_URL}/clients/api/ticket/display/${id}`, {
     headers: { Cookie: cookieStr, 'X-Requested-With': 'XMLHttpRequest' }
   })
   if (r.status === 401 || r.status === 403) {
     _cookieCache = { str: null, ts: 0 }
     const freshCookies = await getCachedCookies()
-    const r2 = await fetch(`${process.env.MONEYWEB_URL}/clients/api/ticket/display/${id}`, {
+    const r2 = await fetch(`${process.env.MONEWEB_URL}/clients/api/ticket/display/${id}`, {
       headers: { Cookie: freshCookies, 'X-Requested-With': 'XMLHttpRequest' }
     })
     return r2.json()
@@ -112,7 +112,7 @@ app.get('/api/export/csv', (req, res) => {
   const rows = tickets.map(t =>
     `"${t.date}","${(t.label || '').replace(/"/g, '""')}",${t.amount},${t.balance ?? ''}`
   ).join('\n')
-  const filename = `moneyweb-${from || 'debut'}-${to || 'fin'}.csv`
+  const filename = `moneweb-${from || 'debut'}-${to || 'fin'}.csv`
   res.setHeader('Content-Type', 'text/csv; charset=utf-8')
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
   res.send('﻿' + header + rows)
@@ -120,7 +120,7 @@ app.get('/api/export/csv', (req, res) => {
 
 const PORT = process.env.PORT || 3000
 app.listen(PORT, () => {
-  console.log(`MONEYWEB démarré sur http://localhost:${PORT}`)
+  console.log(`monewe démarré sur http://localhost:${PORT}`)
   startScheduler(db, runSync)
   const { cached, total } = getCacheStats(db)
   console.log(`Cache HTML : ${cached}/${total} tickets en cache`)
