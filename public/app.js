@@ -61,13 +61,20 @@ let _tickets = []
 
 function expandTicket(t) {
   const raw = t.raw_json ? JSON.parse(t.raw_json) : {}
-  if (raw.TotalFinancier > 0 && raw.TotalPlateau > 0) {
-    const balApres = raw.NouveauSolde
-    const balInter = Math.round((raw.AncienSolde + raw.TotalFinancier) * 100) / 100
+  const fin = raw.TotalFinancier || 0
+  const pla = raw.TotalPlateau   || 0
+
+  if (fin > 0 && pla > 0) {
+    // Rechargement + repas au même passage
+    const balInter = Math.round((raw.AncienSolde + fin) * 100) / 100
     return [
-      { _label: 'RECHARGEMENT', _amount: raw.TotalFinancier,  _balance: balInter, _raw: t },
-      { _label: t.label || 'SELF', _amount: -raw.TotalPlateau, _balance: balApres, _raw: t }
+      { _label: 'RECHARGEMENT', _amount: fin,  _balance: balInter,        _raw: t },
+      { _label: t.label || 'SELF', _amount: -pla, _balance: raw.NouveauSolde, _raw: t }
     ]
+  }
+  if (fin > 0 && pla === 0) {
+    // Rechargement pur (parfois étiqueté SELF par l'API)
+    return [{ _label: 'RECHARGEMENT', _amount: fin, _balance: raw.NouveauSolde, _raw: t }]
   }
   return [{ _label: t.label, _amount: t.amount, _balance: t.balance, _raw: t }]
 }
