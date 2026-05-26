@@ -186,40 +186,76 @@ document.getElementById('btn-export').addEventListener('click', () => {
 })
 
 document.getElementById('btn-pdf-year').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-pdf-year')
   const year = new Date().getFullYear()
-  document.getElementById('pdf-year-label').textContent = year
-  const params = new URLSearchParams({ from: `${year}-01-01`, to: `${year}-12-31` })
-  const { tickets } = await fetch(`/api/tickets?${params}`).then(r => r.json())
-  if (!tickets?.length) { alert('Aucun ticket pour cette année.'); return }
-  const win = window.open('', '_blank')
-  win.document.write(`<!DOCTYPE html><html lang="fr"><head>
-    <meta charset="UTF-8"><title>Tickets ${year}</title>
-    <style>
-      body { font-family: monospace; font-size: 12px; margin: 2cm; }
-      h1 { text-align: center; margin-bottom: 1em; }
-      table { width: 100%; border-collapse: collapse; }
-      th, td { border: 1px solid #999; padding: 4px 8px; }
-      th { background: #eee; }
-      .neg { color: #c00; }
-      .pos { color: #070; }
-      @media print { body { margin: 1cm; } }
-    </style>
-  </head><body>
-    <h1>Tickets cantine — ${year}</h1>
-    <table>
-      <thead><tr><th>Date</th><th>Activité</th><th>Montant</th><th>Solde</th></tr></thead>
-      <tbody>
-        ${tickets.map(t => `<tr>
-          <td>${new Date(t.date).toLocaleString('fr-FR')}</td>
-          <td>${t.label || '—'}</td>
-          <td class="${t.amount < 0 ? 'neg' : 'pos'}">${(t.amount >= 0 ? '+' : '') + t.amount.toFixed(2)} €</td>
-          <td>${t.balance != null ? t.balance.toFixed(2) + ' €' : '—'}</td>
-        </tr>`).join('')}
-      </tbody>
-    </table>
-  </body></html>`)
-  win.document.close()
-  win.print()
+  btn.disabled = true
+  btn.textContent = 'Chargement…'
+
+  try {
+    const params = new URLSearchParams({ from: `${year}-01-01`, to: `${year}-12-31` })
+    const { tickets } = await fetch(`/api/tickets?${params}`).then(r => r.json())
+    if (!tickets?.length) { alert('Aucun ticket pour cette année.'); return }
+
+    // Récupérer les vrais tickets en parallèle (5 à la fois)
+    const htmls = new Array(tickets.length).fill(null)
+    let done = 0
+    async function fetchOne(i) {
+      const raw = tickets[i].raw_json ? JSON.parse(tickets[i].raw_json) : {}
+      const id = raw.IdTicket ?? tickets[i].id
+      try {
+        const { html } = await fetch(`/api/ticket/${id}/display`).then(r => r.json())
+        htmls[i] = html ?? null
+      } catch { htmls[i] = null }
+      done++
+      btn.textContent = `Chargement ${done}/${tickets.length}…`
+    }
+
+    // Pool de concurrence 5
+    let idx = 0
+    async function worker() {
+      while (idx < tickets.length) { await fetchOne(idx++) }
+    }
+    await Promise.all([worker(), worker(), worker(), worker(), worker()])
+
+    // Générer la page d'impression
+    const win = window.open('', '_blank')
+    win.document.write(`<!DOCTYPE html><html lang="fr"><head>
+      <meta charset="UTF-8"><title>Tickets cantine ${year}</title>
+      <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Courier New', monospace; font-size: 11px; background: #fff; }
+        .cover { text-align: center; padding: 4cm 2cm; page-break-after: always; }
+        .cover h1 { font-size: 2em; margin-bottom: 0.5em; }
+        .cover p { font-size: 1.1em; color: #555; }
+        .ticket-page { padding: 1.5cm; page-break-after: always; }
+        .ticket-page:last-child { page-break-after: avoid; }
+        pre { white-space: pre-wrap; line-height: 1.45; }
+        @media print {
+          .cover, .ticket-page { padding: 1cm; }
+        }
+      </style>
+    </head><body>
+      <div class="cover">
+        <h1>Tickets cantine</h1>
+        <p>Année ${year} &mdash; ${tickets.length} tickets</p>
+      </div>
+      ${htmls.map((html, i) => {
+        if (html) return `<div class="ticket-page">${html}</div>`
+        // Fallback texte si l'API n'a pas répondu
+        const t = tickets[i]
+        const raw = t.raw_json ? JSON.parse(t.raw_json) : {}
+        return `<div class="ticket-page"><pre>${new Date(t.date).toLocaleString('fr-FR')}
+${t.label || '—'}
+${t.amount >= 0 ? '+' : ''}${t.amount.toFixed(2)} €   Solde : ${t.balance?.toFixed(2) ?? '—'} €
+Ticket n° ${raw.IdTicket ?? t.id}</pre></div>`
+      }).join('')}
+    </body></html>`)
+    win.document.close()
+    win.print()
+  } finally {
+    btn.disabled = false
+    btn.textContent = `PDF année ${year}`
+  }
 })
 
 setShortcut('month')
