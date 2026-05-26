@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert'
-import { initDb, insertTicket, getTickets, getSummary, logSync, getLastSync, pruneOldTickets } from '../db.js'
+import { initDb, insertTicket, getTickets, getSummary, logSync, getLastSync, pruneOldTickets, getTicketHtml, setTicketHtml, getUncachedIds, getCacheStats } from '../db.js'
 
 test('initDb crée les tables tickets et sync_log', () => {
   const db = initDb(':memory:')
@@ -65,6 +65,25 @@ test('getSummary calcule les débits et crédits séparément', () => {
   assert.ok(Math.abs(summary.total - (-15.50)) < 0.001)
   // credited = 60 + 40 = 100
   assert.ok(Math.abs(summary.credited - 100.00) < 0.001)
+})
+
+test('getTicketHtml / setTicketHtml / getUncachedIds / getCacheStats', () => {
+  const db = initDb(':memory:')
+  insertTicket(db, { id: 'T1', date: '2026-05-10T12:00:00', amount: -5, label: '', location: '', balance: 100,
+    raw_json: JSON.stringify({ TotalPlateau: 5, TotalFinancier: 0, AncienSolde: 105, NouveauSolde: 100 }) })
+  insertTicket(db, { id: 'T2', date: '2026-05-11T12:00:00', amount: -4, label: '', location: '', balance: 96,
+    raw_json: JSON.stringify({ TotalPlateau: 4, TotalFinancier: 0, AncienSolde: 100, NouveauSolde: 96 }) })
+
+  // Aucun cache au départ
+  assert.strictEqual(getTicketHtml(db, 'T1'), null)
+  assert.deepStrictEqual(getUncachedIds(db), ['T1', 'T2'])
+  assert.deepStrictEqual(getCacheStats(db), { total: 2, cached: 0 })
+
+  // Après mise en cache de T1
+  setTicketHtml(db, 'T1', '<pre>ticket html</pre>')
+  assert.strictEqual(getTicketHtml(db, 'T1'), '<pre>ticket html</pre>')
+  assert.deepStrictEqual(getUncachedIds(db), ['T2'])
+  assert.deepStrictEqual(getCacheStats(db), { total: 2, cached: 1 })
 })
 
 test('pruneOldTickets supprime les tickets trop anciens', () => {

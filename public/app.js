@@ -147,6 +147,35 @@ function renderSummary(s) {
   document.getElementById('stat-balance').textContent  = s?.last_balance != null ? s.last_balance.toFixed(2) + ' €' : '—'
 }
 
+async function loadCacheStatus() {
+  const { cached, total } = await fetch('/api/cache/status').then(r => r.json())
+  const el = document.getElementById('cache-status')
+  const btn = document.getElementById('btn-warmup')
+  el.textContent = `Cache ${cached}/${total}`
+  el.title = cached === total
+    ? 'Tous les tickets sont en cache — PDF hors-ligne disponible'
+    : `${total - cached} ticket(s) non encore mis en cache`
+  btn.style.display = cached < total ? 'inline-block' : 'none'
+}
+
+document.getElementById('btn-warmup').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-warmup')
+  btn.disabled = true
+  btn.textContent = 'En cours…'
+  await fetch('/api/cache/warmup', { method: 'POST' })
+  // Polling jusqu'à complétion
+  const poll = setInterval(async () => {
+    const { cached, total } = await fetch('/api/cache/status').then(r => r.json())
+    document.getElementById('cache-status').textContent = `Cache ${cached}/${total}`
+    if (cached >= total) {
+      clearInterval(poll)
+      btn.style.display = 'none'
+      btn.disabled = false
+      btn.textContent = 'Mettre en cache'
+    }
+  }, 1500)
+})
+
 async function loadSyncStatus() {
   const { last_sync, in_progress } = await fetch('/api/sync/status').then(r => r.json())
   const el = document.getElementById('sync-status')
@@ -179,6 +208,7 @@ document.getElementById('btn-sync').addEventListener('click', async () => {
     await fetch('/api/sync/trigger', { method: 'POST' })
     await loadSyncStatus()
     await loadData()
+    await loadCacheStatus()
   } finally {
     btn.disabled = false
     btn.textContent = 'Synchroniser'
@@ -283,4 +313,5 @@ document.getElementById('btn-pdf-year').addEventListener('click', async () => {
 
 setShortcut('month')
 loadSyncStatus()
+loadCacheStatus()
 document.getElementById('pdf-year-label').textContent = new Date().getFullYear()

@@ -2,7 +2,7 @@ import express from 'express'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 import 'dotenv/config'
-import { initDb, getTickets, getSummary, getLastSync } from './db.js'
+import { initDb, getTickets, getSummary, getLastSync, getTicketHtml, setTicketHtml, getUncachedIds, getCacheStats } from './db.js'
 import { runSync, getAuthCookies } from './scraper.js'
 import { startScheduler, triggerSync, isSyncInProgress } from './scheduler.js'
 
@@ -59,19 +59,51 @@ app.post('/api/sync/trigger', async (req, res) => {
   try {
     const result = await triggerSync(db, runSync)
     res.json({ success: true, tickets_new: result.tickets_new })
+    runWarmup(getUncachedIds(db))
   } catch (err) {
     res.status(409).json({ success: false, error: err.message })
   }
 })
 
 app.get('/api/ticket/:id/display', async (req, res) => {
+  const id = req.params.id
+  const cached = getTicketHtml(db, id)
+  if (cached) return res.json({ html: cached })
   try {
-    const data = await fetchTicketDisplay(req.params.id)
+    const data = await fetchTicketDisplay(id)
+    if (data.html) setTicketHtml(db, id, data.html)
     res.json({ html: data.html ?? null })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
 })
+
+app.get('/api/cache/status', (_req, res) => {
+  res.json(getCacheStats(db))
+})
+
+app.post('/api/cache/warmup', (_req, res) => {
+  const ids = getUncachedIds(db)
+  res.json({ queued: ids.length })
+  runWarmup(ids)
+})
+
+async function runWarmup(ids) {
+  if (!ids.length) return
+  let i = 0
+  async function worker() {
+    while (i < ids.length) {
+      const id = ids[i++]
+      try {
+        const data = await fetchTicketDisplay(id)
+        if (data.html) setTicketHtml(db, id, data.html)
+      } catch {}
+    }
+  }
+  await Promise.all([worker(), worker(), worker(), worker(), worker()])
+  const { cached, total } = getCacheStats(db)
+  console.log(`Cache HTML : ${cached}/${total} tickets`)
+}
 
 app.get('/api/export/csv', (req, res) => {
   const { from, to } = req.query
@@ -90,4 +122,7 @@ const PORT = process.env.PORT || 3000
 app.listen(PORT, () => {
   console.log(`MONEYWEB démarré sur http://localhost:${PORT}`)
   startScheduler(db, runSync)
+  const { cached, total } = getCacheStats(db)
+  console.log(`Cache HTML : ${cached}/${total} tickets en cache`)
+  if (cached < total) runWarmup(getUncachedIds(db))
 })

@@ -23,7 +23,28 @@ export function initDb(path = 'tickets.db') {
       error_msg   TEXT
     );
   `)
+  // Migration : ajout de la colonne ticket_html si elle n'existe pas encore
+  try { db.exec('ALTER TABLE tickets ADD COLUMN ticket_html TEXT') } catch {}
   return db
+}
+
+export function getTicketHtml(db, id) {
+  const row = db.prepare('SELECT ticket_html FROM tickets WHERE id = ?').get(String(id))
+  return row?.ticket_html ?? null
+}
+
+export function setTicketHtml(db, id, html) {
+  db.prepare('UPDATE tickets SET ticket_html = ? WHERE id = ?').run(html, String(id))
+}
+
+export function getUncachedIds(db) {
+  return db.prepare('SELECT id FROM tickets WHERE ticket_html IS NULL').all().map(r => r.id)
+}
+
+export function getCacheStats(db) {
+  const { total } = db.prepare('SELECT COUNT(*) as total FROM tickets').get()
+  const { cached } = db.prepare('SELECT COUNT(*) as cached FROM tickets WHERE ticket_html IS NOT NULL').get()
+  return { total, cached }
 }
 
 export function insertTicket(db, ticket) {
