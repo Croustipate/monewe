@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert'
-import { initDb, insertTicket, getTickets, getSummary, logSync, getLastSync } from '../db.js'
+import { initDb, insertTicket, getTickets, getSummary, logSync, getLastSync, pruneOldTickets } from '../db.js'
 
 test('initDb crée les tables tickets et sync_log', () => {
   const db = initDb(':memory:')
@@ -43,14 +43,31 @@ test('getTickets filtre par période et trie par date décroissante', () => {
   assert.strictEqual(result[0].id, 'T003')
 })
 
-test('getSummary calcule count, total et average', () => {
+test('getSummary calcule les débits et crédits séparément', () => {
   const db = initDb(':memory:')
-  insertTicket(db, { id: 'T001', date: '2026-05-10T12:00:00', amount: -5.50, label: '', location: '', balance: 100, raw_json: '{}' })
-  insertTicket(db, { id: 'T002', date: '2026-05-20T12:00:00', amount: -6.00, label: '', location: '', balance: 94.50, raw_json: '{}' })
+  insertTicket(db, { id: 'T001', date: '2026-05-10T12:00:00', amount: -5.50, label: 'SELF', location: '', balance: 94.50, raw_json: '{}' })
+  insertTicket(db, { id: 'T002', date: '2026-05-20T12:00:00', amount: -6.00, label: 'SELF', location: '', balance: 88.50, raw_json: '{}' })
+  insertTicket(db, { id: 'T003', date: '2026-05-15T10:00:00', amount: 60.00, label: 'RECHARGEMENT', location: '', balance: 148.50, raw_json: '{}' })
   const summary = getSummary(db, { from: '2026-05-01', to: '2026-05-31' })
+  // count et totaux ne comptent que les débits (passages cantine)
   assert.strictEqual(summary.count, 2)
   assert.ok(Math.abs(summary.total - (-11.50)) < 0.001)
   assert.ok(Math.abs(summary.average - (-5.75)) < 0.001)
+  // credited = somme des rechargements
+  assert.ok(Math.abs(summary.credited - 60.00) < 0.001)
+})
+
+test('pruneOldTickets supprime les tickets trop anciens', () => {
+  const db = initDb(':memory:')
+  const currentYear = new Date().getFullYear()
+  // Ticket de cette année → conservé
+  insertTicket(db, { id: 'RECENT', date: `${currentYear}-01-15T12:00:00`, amount: -5, label: '', location: '', balance: 100, raw_json: '{}' })
+  // Ticket il y a 5 ans → supprimé (au-delà de 4 ans + année en cours)
+  insertTicket(db, { id: 'OLD', date: `${currentYear - 5}-06-01T12:00:00`, amount: -5, label: '', location: '', balance: 100, raw_json: '{}' })
+  pruneOldTickets(db)
+  const remaining = getTickets(db, {})
+  assert.strictEqual(remaining.length, 1)
+  assert.strictEqual(remaining[0].id, 'RECENT')
 })
 
 test('logSync et getLastSync fonctionnent', () => {

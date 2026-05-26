@@ -47,13 +47,40 @@ export function getSummary(db, { from, to } = {}) {
   const params = []
   if (from) { conditions.push('date >= ?'); params.push(from) }
   if (to)   { conditions.push('date <= ?'); params.push(to + 'T23:59:59') }
-  const where = conditions.length ? ' WHERE ' + conditions.join(' AND ') : ''
-  const row = db.prepare(`
+
+  const spendWhere = conditions.length
+    ? ' WHERE amount < 0 AND ' + conditions.join(' AND ')
+    : ' WHERE amount < 0'
+  const creditWhere = conditions.length
+    ? ' WHERE amount > 0 AND ' + conditions.join(' AND ')
+    : ' WHERE amount > 0'
+
+  // Passages (débits uniquement) — exclut les rechargements
+  const spending = db.prepare(`
     SELECT COUNT(*) as count, SUM(amount) as total, AVG(amount) as average
-    FROM tickets${where}
+    FROM tickets${spendWhere}
   `).get(...params)
+
+  // Total crédité (rechargements) sur la période
+  const { total: credited } = db.prepare(
+    `SELECT COALESCE(SUM(amount), 0) as total FROM tickets${creditWhere}`
+  ).get(...params)
+
   const lastRow = db.prepare('SELECT balance FROM tickets ORDER BY date DESC LIMIT 1').get()
-  return { ...row, last_balance: lastRow?.balance ?? null }
+
+  return {
+    count:        spending.count,
+    total:        spending.total,
+    average:      spending.average,
+    credited,
+    last_balance: lastRow?.balance ?? null
+  }
+}
+
+export function pruneOldTickets(db) {
+  const cutoffYear = new Date().getFullYear() - 4
+  const cutoff = `${cutoffYear}-01-01T00:00:00`
+  return db.prepare('DELETE FROM tickets WHERE date < ?').run(cutoff)
 }
 
 export function logSync(db, { started_at, finished_at, status, tickets_new, error_msg }) {

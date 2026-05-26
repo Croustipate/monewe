@@ -57,27 +57,66 @@ async function loadData() {
   renderSummary(summary)
 }
 
+let _tickets = []
+
 function renderTickets(tickets) {
+  _tickets = tickets ?? []
   const tbody = document.getElementById('tickets-body')
-  if (!tickets?.length) {
-    tbody.innerHTML = '<tr><td colspan="4" class="empty">Aucun ticket sur cette période</td></tr>'
+  if (!_tickets.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="empty">Aucun ticket sur cette période</td></tr>'
     return
   }
-  tbody.innerHTML = tickets.map(t => `
+  tbody.innerHTML = _tickets.map((t, i) => `
     <tr>
       <td>${esc(formatDate(t.date))}</td>
       <td>${esc(t.label) || '—'}</td>
       <td class="${t.amount < 0 ? 'amount-negative' : 'amount-positive'}">${formatAmount(t.amount)}</td>
       <td>${t.balance != null ? t.balance.toFixed(2) + ' €' : '—'}</td>
+      <td><button class="btn-ticket" data-idx="${i}">Voir</button></td>
     </tr>
   `).join('')
+  tbody.querySelectorAll('.btn-ticket').forEach(btn =>
+    btn.addEventListener('click', () => openTicketModal(_tickets[+btn.dataset.idx]))
+  )
 }
 
+function openTicketModal(t) {
+  const raw = t.raw_json ? JSON.parse(t.raw_json) : {}
+  const activite = esc(t.label || raw.Activite || '—')
+  const ancien = raw.AncienSolde != null ? raw.AncienSolde.toFixed(2) + ' €' : '—'
+  const nouveau = raw.NouveauSolde != null ? raw.NouveauSolde.toFixed(2) + ' €' : '—'
+  const plateau = raw.TotalPlateau != null && raw.TotalPlateau !== 0 ? raw.TotalPlateau.toFixed(2) + ' €' : null
+  const financier = raw.TotalFinancier != null && raw.TotalFinancier !== 0 ? raw.TotalFinancier.toFixed(2) + ' €' : null
+  const ttc = raw.TotalTTC != null && raw.TotalTTC !== 0 ? raw.TotalTTC.toFixed(2) + ' €' : null
+
+  document.getElementById('ticket-receipt-content').innerHTML = `
+    <h3>TICKET CANTINE</h3>
+    <div class="ticket-row"><span>Date</span><span>${esc(formatDate(t.date))}</span></div>
+    <div class="ticket-row"><span>Activité</span><span>${activite}</span></div>
+    <div class="ticket-row"><span>Ticket n°</span><span>${esc(String(raw.IdTicket ?? t.id ?? '—'))}</span></div>
+    ${plateau  ? `<div class="ticket-row"><span>Plateau</span><span>${plateau}</span></div>` : ''}
+    ${financier ? `<div class="ticket-row"><span>Financier</span><span>${financier}</span></div>` : ''}
+    ${ttc      ? `<div class="ticket-row"><span>TTC</span><span>${ttc}</span></div>` : ''}
+    <div class="ticket-row total"><span>Solde avant</span><span>${ancien}</span></div>
+    <div class="ticket-row total"><span>Solde après</span><span>${nouveau}</span></div>
+  `
+  document.getElementById('ticket-dialog').showModal()
+}
+
+document.getElementById('dialog-close').addEventListener('click', () =>
+  document.getElementById('ticket-dialog').close()
+)
+document.getElementById('dialog-print').addEventListener('click', () => window.print())
+document.getElementById('ticket-dialog').addEventListener('click', e => {
+  if (e.target === e.currentTarget) e.currentTarget.close()
+})
+
 function renderSummary(s) {
-  document.getElementById('stat-count').textContent   = s?.count   ?? '—'
-  document.getElementById('stat-total').textContent   = s?.total   != null ? Math.abs(s.total).toFixed(2)   + ' €' : '—'
-  document.getElementById('stat-avg').textContent     = s?.average != null ? Math.abs(s.average).toFixed(2) + ' €' : '—'
-  document.getElementById('stat-balance').textContent = s?.last_balance != null ? s.last_balance.toFixed(2) + ' €' : '—'
+  document.getElementById('stat-count').textContent    = s?.count   ?? '—'
+  document.getElementById('stat-total').textContent    = s?.total   != null ? Math.abs(s.total).toFixed(2)   + ' €' : '—'
+  document.getElementById('stat-avg').textContent      = s?.average != null ? Math.abs(s.average).toFixed(2) + ' €' : '—'
+  document.getElementById('stat-credited').textContent = s?.credited != null ? s.credited.toFixed(2) + ' €' : '—'
+  document.getElementById('stat-balance').textContent  = s?.last_balance != null ? s.last_balance.toFixed(2) + ' €' : '—'
 }
 
 async function loadSyncStatus() {
@@ -125,5 +164,43 @@ document.getElementById('btn-export').addEventListener('click', () => {
   window.location.href = `/api/export/csv?${params}`
 })
 
+document.getElementById('btn-pdf-year').addEventListener('click', async () => {
+  const year = new Date().getFullYear()
+  document.getElementById('pdf-year-label').textContent = year
+  const params = new URLSearchParams({ from: `${year}-01-01`, to: `${year}-12-31` })
+  const { tickets } = await fetch(`/api/tickets?${params}`).then(r => r.json())
+  if (!tickets?.length) { alert('Aucun ticket pour cette année.'); return }
+  const win = window.open('', '_blank')
+  win.document.write(`<!DOCTYPE html><html lang="fr"><head>
+    <meta charset="UTF-8"><title>Tickets ${year}</title>
+    <style>
+      body { font-family: monospace; font-size: 12px; margin: 2cm; }
+      h1 { text-align: center; margin-bottom: 1em; }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { border: 1px solid #999; padding: 4px 8px; }
+      th { background: #eee; }
+      .neg { color: #c00; }
+      .pos { color: #070; }
+      @media print { body { margin: 1cm; } }
+    </style>
+  </head><body>
+    <h1>Tickets cantine — ${year}</h1>
+    <table>
+      <thead><tr><th>Date</th><th>Activité</th><th>Montant</th><th>Solde</th></tr></thead>
+      <tbody>
+        ${tickets.map(t => `<tr>
+          <td>${new Date(t.date).toLocaleString('fr-FR')}</td>
+          <td>${t.label || '—'}</td>
+          <td class="${t.amount < 0 ? 'neg' : 'pos'}">${(t.amount >= 0 ? '+' : '') + t.amount.toFixed(2)} €</td>
+          <td>${t.balance != null ? t.balance.toFixed(2) + ' €' : '—'}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+  </body></html>`)
+  win.document.close()
+  win.print()
+})
+
 setShortcut('month')
 loadSyncStatus()
+document.getElementById('pdf-year-label').textContent = new Date().getFullYear()

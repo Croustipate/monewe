@@ -1,6 +1,6 @@
 import { chromium } from 'playwright'
 import 'dotenv/config'
-import { insertTicket, logSync } from './db.js'
+import { insertTicket, logSync, pruneOldTickets } from './db.js'
 
 export async function getAuthCookies() {
   const browser = await chromium.launch({ headless: true })
@@ -61,6 +61,7 @@ export async function runSync(db) {
   try {
     const cookieStr = await getAuthCookies()
     const { total, inserted } = await collectTickets(cookieStr, db)
+    pruneOldTickets(db)
     logSync(db, {
       started_at,
       finished_at: new Date().toISOString(),

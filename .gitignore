@@ -4,3 +4,9 @@ node_modules/
 api-notes.md
 .DS_Store
 *.log
+discover-api.js
+docs/superpowers/
+.browser-profile/
+agentdb.rvf
+agentdb.rvf.lock
+ruvector.db

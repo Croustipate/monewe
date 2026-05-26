@@ -43,6 +43,10 @@
         <span class="stat-value" id="stat-avg">—</span>
       </div>
       <div class="stat">
+        <span class="stat-label">Rechargements</span>
+        <span class="stat-value amount-positive" id="stat-credited">—</span>
+      </div>
+      <div class="stat">
         <span class="stat-label">Solde actuel</span>
         <span class="stat-value" id="stat-balance">—</span>
       </div>
@@ -50,19 +54,30 @@
 
     <section class="actions">
       <button id="btn-export">Exporter CSV</button>
+      <button id="btn-pdf-year">PDF année <span id="pdf-year-label"></span></button>
     </section>
 
     <section class="tickets">
       <table>
         <thead>
-          <tr><th>Date</th><th>Libellé</th><th>Montant</th><th>Solde</th></tr>
+          <tr><th>Date</th><th>Libellé</th><th>Montant</th><th>Solde</th><th></th></tr>
         </thead>
         <tbody id="tickets-body">
-          <tr><td colspan="4" class="empty">Aucun ticket</td></tr>
+          <tr><td colspan="5" class="empty">Aucun ticket</td></tr>
         </tbody>
       </table>
     </section>
   </main>
+
+  <dialog id="ticket-dialog">
+    <div class="dialog-inner">
+      <div class="ticket-receipt" id="ticket-receipt-content"></div>
+      <div class="dialog-actions">
+        <button class="btn-secondary" id="dialog-close">Fermer</button>
+        <button id="dialog-print">Imprimer / PDF</button>
+      </div>
+    </div>
+  </dialog>
 
   <script src="app.js" type="module"></script>
 </body>
