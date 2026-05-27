@@ -50,21 +50,21 @@ Accédez à l'interface sur [http://localhost:3000](http://localhost:3000).
 
 ## Option B — Distribution autonome (sans installation requise)
 
-Un binaire autonome intègre le runtime Node.js. L'utilisateur final décompresse une archive et double-clique sur le lanceur.
+Un binaire compilé intègre le runtime Bun et toutes les dépendances. L'utilisateur final décompresse une archive, configure `.env` et double-clique sur le lanceur. **Aucun Node.js, Bun ou npm requis sur la machine cible.**
 
 ### Mac ARM64 (Apple Silicon M1/M2/M3/M4)
 
-**Sur la machine de build (Mac Apple Silicon) :**
+**Sur la machine de build (Mac Apple Silicon, avec [Bun](https://bun.sh)) :**
 
 ```bash
 npm install
-bash build.sh arm64
-# Crée dist/monewe-mac-arm64.zip
+~/.bun/bin/bun run bun-build.js arm64
+# Crée dist/monewe-mac-arm64-bun.zip
 ```
 
 **Déploiement :**
 
-1. Décompresser `monewe-mac-arm64.zip`
+1. Décompresser `monewe-mac-arm64-bun.zip`
 2. Copier `.env.example` → `.env` et renseigner les identifiants
 3. Double-cliquer sur `start.command` (ou `bash start.command`)
 4. Ouvrir [http://localhost:3000](http://localhost:3000)
@@ -75,20 +75,12 @@ bash build.sh arm64
 
 ### Mac x64 (Intel)
 
-**Sur la machine de build (Mac Apple Silicon avec Rosetta 2 installé) :**
+**Sur la machine de build (Mac Apple Silicon ou Mac Intel, avec Bun) :**
 
 ```bash
 npm install
-bash build.sh x64
-# Recompile better-sqlite3 pour x86_64 via Rosetta, puis crée dist/monewe-mac-x64.zip
-```
-
-Si la recompilation Rosetta échoue, compiler directement sur un Mac Intel :
-
-```bash
-# Sur Mac Intel :
-npm install
-bash build.sh arm64   # produit un binaire x64 natif
+~/.bun/bin/bun run bun-build.js x64
+# Crée dist/monewe-mac-x64-bun.zip
 ```
 
 **Déploiement :** identique à ARM64, utiliser `start.command`.
@@ -97,28 +89,19 @@ bash build.sh arm64   # produit un binaire x64 natif
 
 ### Windows x64
 
-**Prérequis sur la machine Windows :**
+**Sur n'importe quelle machine avec Bun (cross-compilation depuis Mac possible) :**
 
-- [Node.js LTS](https://nodejs.org/) (inclut npm)
-- [Python 3](https://www.python.org/) (requis par node-gyp pour compiler better-sqlite3)
-- Build Tools C++ : `npm install -g node-gyp` puis [Visual Studio Build Tools](https://visualstudio.microsoft.com/fr/visual-cpp-build-tools/)
-
-```bat
-git clone https://github.com/Croustipate/monewe.git
-cd monewe
-npm install
-build.bat
-:: Crée dist\monewe-windows-x64.zip
+```bash
+~/.bun/bin/bun run bun-build.js win
+# Crée dist/monewe-windows-x64-bun.zip
 ```
 
 **Déploiement :**
 
-1. Décompresser `monewe-windows-x64.zip`
+1. Décompresser `monewe-windows-x64-bun.zip`
 2. Copier `.env.example` → `.env` et renseigner les identifiants
 3. Double-cliquer sur `start.bat`
 4. Ouvrir [http://localhost:3000](http://localhost:3000)
-
-> **Note :** le fichier `better_sqlite3.node` est lié à la plateforme et à la version Node.js. La compilation doit se faire sur la même plateforme que la cible.
 
 ---
 
@@ -138,8 +121,10 @@ npm test
 | `scheduler.js` | Cron quotidien et mutex de synchro |
 | `public/` | Interface web (HTML + CSS + JS vanilla) |
 | `test/` | Tests unitaires (Node.js test runner natif) |
-| `build.sh` | Script de build Mac (arm64 / x64) |
-| `build.bat` | Script de build Windows x64 |
+| `bun-build.js` | Build binaire compilé (arm64 / x64 / win) via Bun |
+| `bun-sqlite-compat.js` | Shim better-sqlite3 → bun:sqlite (utilisé par le build) |
+| `build.sh` | Build alternatif Mac via esbuild + Node (dev) |
+| `build.bat` | Build alternatif Windows via esbuild + Node (dev) |
 
 ## Variables d'environnement
 

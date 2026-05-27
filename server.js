@@ -6,7 +6,12 @@ import { initDb, getTickets, getSummary, getLastSync, getTicketHtml, setTicketHt
 import { runSync, getAuthCookies } from './scraper.js'
 import { startScheduler, triggerSync, isSyncInProgress } from './scheduler.js'
 
-const __dirname = dirname(fileURLToPath(import.meta.url))
+const __metaFile = fileURLToPath(import.meta.url)
+// Dans un binaire compilé Bun, les sources sont embarquées sous /$bunfs/
+// On utilise alors le répertoire du binaire pour trouver public/ et tickets.db
+const __dirname = __metaFile.startsWith('/$bunfs/')
+  ? dirname(process.execPath)
+  : dirname(__metaFile)
 const app = express()
 const db = initDb()
 
