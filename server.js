@@ -14,6 +14,21 @@ const __dirname = existsSync(join(__metaDir, 'public')) ? __metaDir : dirname(pr
 const app = express()
 const db = initDb()
 
+// Basic Auth (optionnel — activé si AUTH_USER et AUTH_PASSWORD sont définis dans .env)
+const AUTH_USER = process.env.AUTH_USER
+const AUTH_PASSWORD = process.env.AUTH_PASSWORD
+if (AUTH_USER && AUTH_PASSWORD) {
+  app.use((req, res, next) => {
+    const header = req.headers.authorization
+    if (header && header.startsWith('Basic ')) {
+      const [user, pass] = Buffer.from(header.slice(6), 'base64').toString().split(':')
+      if (user === AUTH_USER && pass === AUTH_PASSWORD) return next()
+    }
+    res.setHeader('WWW-Authenticate', 'Basic realm="monewe"')
+    res.status(401).send('Authentification requise')
+  })
+}
+
 // Cache des cookies de session MONEWEB (valide 4h)
 let _cookieCache = { str: null, ts: 0 }
 const COOKIE_TTL = 4 * 60 * 60 * 1000
