@@ -1,17 +1,16 @@
 import express from 'express'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
+import { existsSync } from 'fs'
 import 'dotenv/config'
 import { initDb, getTickets, getSummary, getLastSync, getTicketHtml, setTicketHtml, getUncachedIds, getCacheStats } from './db.js'
 import { runSync, getAuthCookies } from './scraper.js'
 import { startScheduler, triggerSync, isSyncInProgress } from './scheduler.js'
 
-const __metaFile = fileURLToPath(import.meta.url)
-// Dans un binaire compilé Bun, les sources sont embarquées sous /$bunfs/
-// On utilise alors le répertoire du binaire pour trouver public/ et tickets.db
-const __dirname = __metaFile.startsWith('/$bunfs/')
-  ? dirname(process.execPath)
-  : dirname(__metaFile)
+const __metaDir = dirname(fileURLToPath(import.meta.url))
+// En binaire compilé Bun, __metaDir pointe vers le système de fichiers virtuel
+// (inexistant sur le disque) — on utilise alors le répertoire du binaire lui-même
+const __dirname = existsSync(join(__metaDir, 'public')) ? __metaDir : dirname(process.execPath)
 const app = express()
 const db = initDb()
 
