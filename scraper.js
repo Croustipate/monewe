@@ -6,10 +6,17 @@ const HEADERS = {
   'X-Requested-With': 'XMLHttpRequest'
 }
 
+// Permet de désactiver la vérification TLS via NODE_TLS_REJECT_UNAUTHORIZED=0
+// Utile derrière un proxy d'entreprise avec inspection SSL
+const TLS = process.env.NODE_TLS_REJECT_UNAUTHORIZED === '0'
+  ? { tls: { rejectUnauthorized: false } }
+  : {}
+
 export async function getAuthCookies() {
   const res = await fetch(`${process.env.MONEWEB_URL}/clients/api/sign/in`, {
     method: 'POST',
     headers: HEADERS,
+    ...TLS,
     body: JSON.stringify({
       ID: (process.env.MONEWEB_ID || '').trim(),
       Password: (process.env.MONEWEB_PASSWORD || '').trim(),
@@ -33,6 +40,7 @@ export async function collectTickets(cookieStr, db) {
   const res = await fetch(`${process.env.MONEWEB_URL}/clients/api/compte/dashboard`, {
     method: 'POST',
     headers: { ...HEADERS, Cookie: cookieStr },
+    ...TLS,
     body: '{}'
   })
 

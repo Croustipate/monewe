@@ -25,16 +25,22 @@ async function getCachedCookies() {
   return str
 }
 
+const TLS = process.env.NODE_TLS_REJECT_UNAUTHORIZED === '0'
+  ? { tls: { rejectUnauthorized: false } }
+  : {}
+
 async function fetchTicketDisplay(id) {
   const cookieStr = await getCachedCookies()
   const r = await fetch(`${process.env.MONEWEB_URL}/clients/api/ticket/display/${id}`, {
-    headers: { Cookie: cookieStr, 'X-Requested-With': 'XMLHttpRequest' }
+    headers: { Cookie: cookieStr, 'X-Requested-With': 'XMLHttpRequest' },
+    ...TLS
   })
   if (r.status === 401 || r.status === 403) {
     _cookieCache = { str: null, ts: 0 }
     const freshCookies = await getCachedCookies()
     const r2 = await fetch(`${process.env.MONEWEB_URL}/clients/api/ticket/display/${id}`, {
-      headers: { Cookie: freshCookies, 'X-Requested-With': 'XMLHttpRequest' }
+      headers: { Cookie: freshCookies, 'X-Requested-With': 'XMLHttpRequest' },
+      ...TLS
     })
     return r2.json()
   }
