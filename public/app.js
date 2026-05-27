@@ -199,7 +199,7 @@ async function loadSyncStatus() {
   } else if (last_sync) {
     const d = new Date(last_sync.finished_at).toLocaleString('fr-FR')
     const ok = last_sync.status === 'success'
-    el.textContent = `Dernière synchro : ${d} ${ok ? '✓' : '✗'}`
+    el.textContent = `Dernière synchro : ${d} ${ok ? '✓' : '✗'}${last_sync.error_msg ? ' — ' + last_sync.error_msg : ''}`
     el.className = ok ? 'status-success' : 'status-error'
   } else {
     el.textContent = 'Jamais synchronisé'
