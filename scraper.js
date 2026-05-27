@@ -11,8 +11,8 @@ export async function getAuthCookies() {
     method: 'POST',
     headers: HEADERS,
     body: JSON.stringify({
-      ID: process.env.MONEWEB_ID,
-      Password: process.env.MONEWEB_PASSWORD,
+      ID: (process.env.MONEWEB_ID || '').trim(),
+      Password: (process.env.MONEWEB_PASSWORD || '').trim(),
       RememberMe: true
     })
   })
