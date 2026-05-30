@@ -5,7 +5,8 @@ api-notes.md
 .DS_Store
 *.log
 discover-api.js
-docs/superpowers/
+docs/superpowers/*
+!docs/superpowers/specs
 dist/
 .browser-profile/
 agentdb.rvf
